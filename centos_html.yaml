@@ -1,0 +1,64 @@
+---
+- name: web 서버 설치
+  hosts: centos
+  become: yes
+  vars:
+    web_root: /var/www/html/ansiblelab3
+    git_repo: https://github.com/DongJunLee24/ansiblelab3.git
+
+  tasks:
+    - name: Centos git install
+      ansible.builtin.package:
+        name: git
+        state: present
+
+    - name: Centos httpd install
+      ansible.builtin.package:
+        name: httpd
+        state: present
+
+    - name: Centos curl install
+      ansible.builtin.package:
+        name: curl
+        state: present
+
+    - name: CentOS disable firewalld
+      ansible.builtin.service:
+        name: firewalld
+        state: stopped
+        enabled: no
+
+    - name: git clone
+      ansible.builtin.git:
+        repo: "{{ git_repo }}"
+        dest: "{{ web_root }}"
+        version: master
+      register: git_result
+
+    - name: CentOS > start web server
+      ansible.builtin.service:
+        name: httpd
+        state: started
+
+    - name: git 변경 확인하는 debug
+      ansible.builtin.debug:
+        msg: "Changes pulled from Git repository"
+      when: git_result.changed
+
+    - name: httpd restart를 위한 trigger set
+      ansible.builtin.set_fact:
+        restart_httpd: true
+      when: git_result.changed
+
+  handlers:
+    - name: restart httpd
+      ansible.builtin.service:
+        name: httpd
+        state: restarted
+      when: restart_httpd
+      listen: result
+
+    - name: result
+      ansible.builtin.debug:
+        var: resultd
+
